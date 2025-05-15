@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <title>ZK-Powered Number Guessing Game</title>
+  <script type="module">
+    import { VLayerClient } from 'https://cdn.jsdelivr.net/npm/@vlayer/sdk/dist/index.esm.js';
+
+    // 1. Initialize vLayer
+    const client = new VLayerClient({ network: 'testnet' });
+
+    // 2. Connect wallet
+    async function connectWallet() {
+      await client.connectWallet(); // opens MetaMask
+      document.getElementById('status').innerText = 'Connected: ' + client.address;
+    }
+
+    // 3. Game logic
+    let secret = Math.floor(Math.random() * 100) + 1;
+    let bestScore = localStorage.getItem('bestScore') || 999;
+
+    async function submitGuess() {
+      const guess = Number(document.getElementById('guess').value);
+      const diff = Math.abs(secret - guess);
+
+      // If new record, save and generate ZK proof
+      if (diff < bestScore) {
+        bestScore = diff;
+        localStorage.setItem('bestScore', bestScore);
+
+        const proof = await client.webProof({
+          url: `https://example.com/game?record=${bestScore}`
+        });
+
+        document.getElementById('proof').innerText = JSON.stringify(proof, null, 2);
+        document.getElementById('best').innerText = bestScore;
+      }
+
+      if (guess < secret) {
+        document.getElementById('feedback').innerText = 'Guess higher!';
+      } else if (guess > secret) {
+        document.getElementById('feedback').innerText = 'Guess lower!';
+      } else {
+        document.getElementById('feedback').innerText = 'You got it!';
+        secret = Math.floor(Math.random() * 100) + 1;
+      }
+    }
+  </script>
+</head>
+<body style="text-align: left; font-family: sans-serif; padding: 20px;">
+  <h2>ZK-Powered Number Guessing Game</h2>
+  <button onclick="connectWallet()">Connect Wallet</button>
+  <p id="status">Status: Not connected</p>
+  <hr>
+  <label for="guess">Your Guess (1 to 100): </label>
+  <input id="guess" type="number" min="1" max="100" />
+  <button onclick="submitGuess()">Submit</button>
+  <p id="feedback"></p>
+  <h3>Best Score (smallest difference)</h3>
+  <p id="best">–</p>
+  <h3>Last ZK-Proof</h3>
+  <pre id="proof" style="background:#f4f4f4; padding:10px; white-space: pre-wrap;"></pre>
+</body>
+</html>
